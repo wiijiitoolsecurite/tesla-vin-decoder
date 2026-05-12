@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wissjinatech Tesla VIN Decoder</title>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap');
+
+*{margin:0;padding:0;box-sizing:border-box}
+
+body{
+    min-height:100vh;
+    background:
+        radial-gradient(circle at top left, rgba(255,255,255,.10), transparent 25%),
+        radial-gradient(circle at bottom right, rgba(255,255,255,.06), transparent 25%),
+        linear-gradient(135deg,#050505,#101010);
+    color:white;
+    font-family:'Montserrat',sans-serif;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding:20px;
+}
+
+.container{
+    width:100%;
+    max-width:980px;
+    background:rgba(18,18,18,.93);
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:30px;
+    padding:35px;
+    box-shadow:0 30px 90px rgba(0,0,0,.65);
+    backdrop-filter:blur(18px);
+}
+
+.logo{
+    text-align:center;
+    font-size:46px;
+    letter-spacing:12px;
+    font-weight:800;
+    margin-bottom:10px;
+}
+
+.subtitle{
+    text-align:center;
+    opacity:.72;
+    line-height:1.7;
+    font-size:13px;
+    margin-bottom:28px;
+}
+
+input{
+    width:100%;
+    height:58px;
+    border-radius:16px;
+    border:1px solid rgba(255,255,255,.08);
+    background:#171717;
+    color:white;
+    padding:0 18px;
+    font-size:16px;
+    outline:none;
+    margin-bottom:12px;
+}
+
+input:focus{
+    border-color:rgba(255,255,255,.35);
+    background:#1f1f1f;
+}
+
+button{
+    width:100%;
+    height:58px;
+    border:none;
+    border-radius:16px;
+    background:white;
+    color:black;
+    font-weight:800;
+    cursor:pointer;
+    transition:.2s;
+}
+
+button:hover{
+    transform:translateY(-2px);
+}
+
+.grid{
+    display:none;
+    grid-template-columns:1fr 1fr;
+    gap:18px;
+    margin-top:24px;
+}
+
+.card{
+    background:#141414;
+    border:1px solid rgba(255,255,255,.07);
+    border-radius:24px;
+    padding:22px;
+}
+
+.card h3{
+    margin-bottom:16px;
+    font-size:16px;
+}
+
+.row{
+    display:flex;
+    justify-content:space-between;
+    gap:12px;
+    padding:9px 0;
+    border-bottom:1px solid rgba(255,255,255,.06);
+    font-size:13px;
+}
+
+.row:last-child{
+    border-bottom:none;
+}
+
+.key{
+    opacity:.58;
+}
+
+.value{
+    text-align:right;
+    font-weight:650;
+}
+
+.big{
+    font-size:34px;
+    font-weight:800;
+    margin-bottom:6px;
+}
+
+.badge{
+    display:inline-block;
+    margin-top:12px;
+    padding:8px 12px;
+    border-radius:999px;
+    background:#232323;
+    border:1px solid rgba(255,255,255,.08);
+    font-size:12px;
+}
+
+.note{
+    margin-top:15px;
+    font-size:12px;
+    line-height:1.7;
+    opacity:.68;
+}
+
+.footer{
+    margin-top:22px;
+    text-align:center;
+    font-size:11px;
+    opacity:.5;
+    line-height:1.7;
+}
+
+@media(max-width:820px){
+    .grid{
+        grid-template-columns:1fr;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="logo">TESLA</div>
+
+    <div class="subtitle">
+        Accepte les VIN Tesla complets (17 caractères)
+        ainsi que les VIN sans les 6 derniers chiffres.<br><br>
+        Aucune donnée VIN n’est stockée.<br>
+        Toute l’analyse est effectuée localement dans votre navigateur.
+    </div>
+
+    <input id="vin" placeholder="VIN complet ou sans les 6 derniers chiffres">
+
+    <button onclick="decodeVIN()">Détecter la batterie</button>
+
+    <div class="grid" id="resultGrid">
+
+        <div class="card">
+
+            <h3>Informations véhicule</h3>
+
+            <div class="row"><span class="key">VIN masqué</span><span class="value" id="masked"></span></div>
+            <div class="row"><span class="key">WMI</span><span class="value" id="wmi"></span></div>
+            <div class="row"><span class="key">Modèle</span><span class="value" id="model"></span></div>
+            <div class="row"><span class="key">Position 7</span><span class="value" id="batteryFamily"></span></div>
+            <div class="row"><span class="key">Position 8</span><span class="value" id="drive"></span></div>
+            <div class="row"><span class="key">Année modèle</span><span class="value" id="year"></span></div>
+            <div class="row"><span class="key">Usine finale</span><span class="value" id="factory"></span></div>
+            <div class="row"><span class="key">Séquence production</span><span class="value" id="sequence"></span></div>
+
+        </div>
+
+        <div class="card">
+
+            <h3>Batterie détectée</h3>
+
+            <div class="big" id="batteryCode">--</div>
+            <div id="batteryName"></div>
+
+            <span class="badge" id="confidence"></span>
+
+            <div class="row" style="margin-top:14px"><span class="key">Chimie</span><span class="value" id="chemistry"></span></div>
+            <div class="row"><span class="key">Fournisseur</span><span class="value" id="supplier"></span></div>
+            <div class="row"><span class="key">Capacité estimée</span><span class="value" id="capacity"></span></div>
+            <div class="row"><span class="key">Charge DC</span><span class="value" id="dc"></span></div>
+            <div class="row"><span class="key">Conseil recharge</span><span class="value" id="chargeAdvice"></span></div>
+
+            <div class="note" id="explain"></div>
+
+        </div>
+
+    </div>
+
+    <div class="footer">
+        © 2026 Wissjinatech<br>
+        Aucun VIN stocké. Analyse locale dans le navigateur.
+    </div>
+
+</div>
+
+<script>
+
+const years = {
+    H:"2017",J:"2018",K:"2019",L:"2020",
+    M:"2021",N:"2022",P:"2023",R:"2024",
+    S:"2025",T:"2026"
+};
+
+function getFactory(wmi, plant){
+    if(wmi==="XP7") return "Berlin, Allemagne";
+    if(wmi==="LRW") return "Shanghai, Chine";
+    if(wmi==="5YJ") return "Fremont, USA";
+    if(wmi==="7SA"){
+        if(plant==="F") return "Fremont, USA";
+        if(plant==="A") return "Austin, USA";
+        return "USA";
+    }
+    return "Inconnue";
+}
+
+function getModel(code){
+    if(code==="Y") return "Tesla Model Y";
+    if(code==="3") return "Tesla Model 3";
+    if(code==="S") return "Tesla Model S";
+    if(code==="X") return "Tesla Model X";
+    return "Tesla";
+}
+
+function getDrive(code){
+    const map = {
+        B:"Long Range Dual Motor",
+        C:"Performance AWD",
+        K:"Long Range Dual Motor",
+        L:"Performance Dual Motor AWD",
+        R:"Propulsion",
+        S:"Propulsion",
+        E:"Dual Motor",
+        F:"Performance"
+    };
+    return map[code] || "Inconnu";
+}
+
+function decodeVIN(){
+
+    const raw = document.getElementById("vin").value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+
+    if(raw.length !== 17 && raw.length !== 11){
+        alert("Le VIN doit contenir 17 caractères ou 11 caractères sans les 6 derniers chiffres.");
+        return;
+    }
+
+    const partialMode = raw.length === 11;
+
+    const wmi = raw.slice(0,3);
+    const modelChar = raw[3];
+    const batteryFamily = raw[6];
+    const driveChar = raw[7];
+    const yearCode = raw[9];
+    const plant = raw[10];
+    const sequence = partialMode ? "Non fournie" : raw.slice(11,17);
+
+    let batteryCode = "Inconnue";
+    let batteryName = "Non déterminée";
+    let chemistry = "Inconnue";
+    let supplier = "Inconnu";
+    let capacity = "Indéterminée";
+    let dc = "Indéterminée";
+    let advice = "À confirmer";
+    let confidence = "Confiance faible";
+    let explain = "Pas assez d’informations.";
+
+    // LFP Shanghai
+    if(wmi==="LRW" && batteryFamily==="F"){
+        batteryCode = "LFP";
+        batteryName = "Pack LFP";
+        chemistry = "Lithium Fer Phosphate";
+        supplier = "CATL / BYD";
+        capacity = "≈ 57 - 62 kWh";
+        dc = "≈ 170 kW";
+        advice = "Recharge 100% possible régulièrement";
+        confidence = "Confiance 90%";
+        explain = "Shanghai + position 7 = F → très souvent associé à une batterie LFP.";
+    }
+
+    // Shanghai Long Range
+    if(wmi==="LRW" && batteryFamily==="E" && driveChar==="K"){
+        batteryCode = "5M";
+        batteryName = "Pack 5M";
+        chemistry = "NMC";
+        supplier = "LG Energy Solution";
+        capacity = "≈ 75 - 82 kWh";
+        dc = "≈ 250 kW";
+        advice = "80% recommandé au quotidien";
+        confidence = "Confiance 82%";
+        explain = "Shanghai + position 7 = E + position 8 = K → Long Range Dual Motor, pack 5M probable.";
+    }
+
+    // Berlin Performance
+    if(wmi==="XP7" && driveChar==="L"){
+        batteryCode = "5M";
+        batteryName = "Pack 5M Performance";
+        chemistry = "NMC";
+        supplier = "LG Energy Solution";
+        capacity = "≈ 79 - 82 kWh";
+        dc = "≈ 250 kW";
+        advice = "80% recommandé au quotidien";
+        confidence = "Confiance 88%";
+        explain = "Berlin + position 8 = L → Performance Dual Motor AWD, très souvent associé au pack 5M.";
+    }
+
+    // Berlin Long Range
+    if(wmi==="XP7" && driveChar==="K"){
+        batteryCode = "5M";
+        batteryName = "Pack 5M Long Range";
+        chemistry = "NMC";
+        supplier = "LG Energy Solution";
+        capacity = "≈ 75 - 82 kWh";
+        dc = "≈ 250 kW";
+        advice = "80% recommandé au quotidien";
+        confidence = "Confiance 84%";
+        explain = "Berlin + position 8 = K → Long Range Dual Motor, pack 5M probable.";
+    }
+
+    // Berlin Propulsion
+    if(wmi==="XP7" && ["R","S"].includes(driveChar)){
+        batteryCode = "LFP";
+        batteryName = "Pack LFP Propulsion";
+        chemistry = "LFP";
+        supplier = "CATL / BYD";
+        capacity = "≈ 57 - 62 kWh";
+        dc = "≈ 170 kW";
+        advice = "Recharge 100% possible";
+        confidence = "Confiance 75%";
+        explain = "Berlin + propulsion → généralement batterie LFP.";
+    }
+
+    // Fremont Model 3
+    if(wmi==="5YJ" && modelChar==="3" && driveChar==="B"){
+        batteryCode = "Panasonic LR";
+        batteryName = "Pack Long Range";
+        chemistry = "NCA / NMC";
+        supplier = "Panasonic";
+        capacity = "≈ 75 - 82 kWh";
+        dc = "≈ 250 kW";
+        advice = "80% recommandé";
+        confidence = "Confiance 85%";
+        explain = "Model 3 Fremont Long Range 2021 → pack Panasonic grande capacité probable.";
+    }
+
+    if(wmi==="5YJ" && modelChar==="3" && driveChar==="C"){
+        batteryCode = "Panasonic Perf";
+        batteryName = "Pack Performance";
+        chemistry = "NCA / NMC";
+        supplier = "Panasonic";
+        capacity = "≈ 75 - 82 kWh";
+        dc = "≈ 250 kW";
+        advice = "80% recommandé";
+        confidence = "Confiance 88%";
+        explain = "Model 3 Performance Fremont → batterie Panasonic Performance probable.";
+    }
+
+    // Model X / S USA
+    if(wmi==="7SA" && ["X","S"].includes(modelChar)){
+        batteryCode = "Large Pack";
+        batteryName = "Pack grande capacité";
+        chemistry = "NMC / NCA";
+        supplier = "Tesla / Panasonic";
+        capacity = "≈ 95 - 100 kWh";
+        dc = "≈ 250 kW";
+        advice = "80% recommandé";
+        confidence = "Confiance 80%";
+        explain = "Model S/X Dual Motor USA → pack grande capacité ≈ 100 kWh probable.";
+    }
+
+    document.getElementById("resultGrid").style.display = "grid";
+
+    if(partialMode){
+        document.getElementById("masked").textContent = raw + "******";
+    }else{
+        document.getElementById("masked").textContent =
+            raw.slice(0,3) + "*****" + raw.slice(8,11) + "***" + raw.slice(-3);
+    }
+
+    document.getElementById("wmi").textContent = wmi;
+    document.getElementById("model").textContent = getModel(modelChar);
+    document.getElementById("batteryFamily").textContent = batteryFamily;
+    document.getElementById("drive").textContent = getDrive(driveChar);
+    document.getElementById("year").textContent = years[yearCode] || "Inconnue";
+    document.getElementById("factory").textContent = getFactory(wmi, plant);
+    document.getElementById("sequence").textContent = sequence;
+
+    document.getElementById("batteryCode").textContent = batteryCode;
+    document.getElementById("batteryName").textContent = batteryName;
+    document.getElementById("chemistry").textContent = chemistry;
+    document.getElementById("supplier").textContent = supplier;
+    document.getElementById("capacity").textContent = capacity;
+    document.getElementById("dc").textContent = dc;
+    document.getElementById("chargeAdvice").textContent = advice;
+    if(partialMode && !confidence.includes("faible")){
+        document.getElementById("confidence").textContent = confidence + " / VIN partiel";
+    }else{
+        document.getElementById("confidence").textContent = confidence;
+    }
+    document.getElementById("explain").textContent = explain;
+}
+
+</script>
+
+</body>
+</html>
